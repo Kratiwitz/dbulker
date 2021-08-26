@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
-	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -52,24 +51,12 @@ func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interfa
 	dataIndexes := []int{}
 
 	for i := 0; i < numField; i++ {
-		kind := dataType.Field(i).Type.Kind()
-
-		if kind == reflect.Array || kind == reflect.Slice || len(dataType.Field(i).Tag.Get(TagRelationName)) > 0 {
-			if sql[len(sql)-1:] == "," {
-				sql = sql[:len(sql)-1]
-			}
+		if checkNested(dataType, i) {
+			removeLastCommaFromSqlIfAny(&sql)
 			continue
 		}
 
-		tag := dataType.Field(i).Tag.Get("bulker")
-
-		if numField-1 != i {
-			tag += ","
-		}
-
-		dataIndexes = append(dataIndexes, i)
-
-		sql += tag
+		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
 	}
 
 	sql += ") VALUES "
@@ -77,24 +64,14 @@ func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interfa
 	dataLength := len(data)
 
 	for index, v := range data {
-		sql += "("
-		t := reflect.ValueOf(v)
+		sql += LeftParanthesisToken
 
-		for i, valueIndex := range dataIndexes {
-			value := strings.ReplaceAll(t.Field(valueIndex).String(), "\"", "\\\"")
-			value = "\"" + value + "\""
-
-			if len(dataIndexes)-1 != i {
-				value += ","
-			}
-
-			sql += value
-		}
+		writeValuesToSql(&sql, &v, dataIndexes)
 
 		if dataLength-1 == index {
-			sql += ")"
+			sql += RightParanthesisToken
 		} else {
-			sql += "),"
+			sql += RightParanthesisToken + CommaToken
 		}
 	}
 
@@ -113,47 +90,22 @@ func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interfa
 func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}) (int64, error) {
 	sql := "INSERT INTO " + targetTable + " ("
 
-	t := reflect.TypeOf(data)
-	numField := t.NumField()
+	dataType := reflect.TypeOf(data)
+	numField := dataType.NumField()
 	dataIndexes := []int{}
 
 	for i := 0; i < numField; i++ {
-		kind := t.Field(i).Type.Kind()
-
-		if kind == reflect.Array || kind == reflect.Slice || len(t.Field(i).Tag.Get("relaction_name")) > 0 {
-			if sql[len(sql)-1:] == "," {
-				sql = sql[:len(sql)-1]
-			}
+		if checkNested(dataType, i) {
+			removeLastCommaFromSqlIfAny(&sql)
 			continue
 		}
 
-		tag := t.Field(i).Tag.Get("bulker")
-
-		if numField-1 != i {
-			tag += ","
-		}
-
-		dataIndexes = append(dataIndexes, i)
-
-		sql += tag
+		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
 	}
 
-	sql += ") VALUES ("
-
-	values := reflect.ValueOf(data)
-
-	for i, valueIndex := range dataIndexes {
-		value := strings.ReplaceAll(values.Field(valueIndex).String(), "\"", "\\\"")
-		value = "\"" + value + "\""
-
-		if len(dataIndexes)-1 != i {
-			value += ","
-		}
-
-		sql += value
-	}
-
-	sql += ")"
+	sql += RightParanthesisToken + " " + ValuesToken + " " + LeftParanthesisToken
+	writeValuesToSql(&sql, &data, dataIndexes)
+	sql += RightParanthesisToken
 
 	res, err := mysqldb.client.Exec(sql)
 
@@ -177,47 +129,24 @@ func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}
 func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{}) (int64, error) {
 	sql := "INSERT INTO " + targetTable + " ("
 
-	t := reflect.TypeOf(data)
-	numField := t.NumField()
+	dataType := reflect.TypeOf(data)
+	numField := dataType.NumField()
 	dataIndexes := []int{}
 
 	for i := 0; i < numField; i++ {
-		kind := t.Field(i).Type.Kind()
-
-		if kind == reflect.Array || kind == reflect.Slice {
-			if sql[len(sql)-1:] == "," {
-				sql = sql[:len(sql)-1]
-			}
+		if checkNested(dataType, i) {
+			removeLastCommaFromSqlIfAny(&sql)
 			continue
 		}
 
-		tag := t.Field(i).Tag.Get("bulker")
-
-		if numField-1 != i {
-			tag += ","
-		}
-
-		dataIndexes = append(dataIndexes, i)
-
-		sql += tag
+		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
 	}
 
-	sql += ") VALUES ("
+	sql += RightParanthesisToken + " " + ValuesToken + " " + LeftParanthesisToken
 
-	values := reflect.ValueOf(data)
+	writeValuesToSql(&sql, &data, dataIndexes)
 
-	for i, valueIndex := range dataIndexes {
-		value := strings.ReplaceAll(values.Field(valueIndex).String(), "\"", "\\\"")
-		value = "\"" + value + "\""
-
-		if len(dataIndexes)-1 != i {
-			value += ","
-		}
-
-		sql += value
-	}
-
-	sql += ")"
+	sql += RightParanthesisToken
 
 	res, err := mysqldb.client.Exec(sql)
 

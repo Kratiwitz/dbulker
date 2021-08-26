@@ -27,7 +27,7 @@ func main() {
 	data, err := mongodb.GetAll("mangas", Manga{})
 	CheckError(err)
 
-	_, err = mysqldb.FillAutoNestedSingle("manga", data[0])
+	_, err = mysqldb.FillAutoPlainSingle("manga", data[0])
 
 	CheckError(err)
 }
