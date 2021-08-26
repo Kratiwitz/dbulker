@@ -1,4 +1,4 @@
-package database
+package main
 
 type Database interface {
 	Connect() error

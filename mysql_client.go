@@ -1,4 +1,4 @@
-package database
+package main
 
 import (
 	"database/sql"
@@ -54,7 +54,7 @@ func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interfa
 	for i := 0; i < numField; i++ {
 		kind := dataType.Field(i).Type.Kind()
 
-		if kind == reflect.Array || kind == reflect.Slice {
+		if kind == reflect.Array || kind == reflect.Slice || len(dataType.Field(i).Tag.Get(TagRelationName)) > 0 {
 			if sql[len(sql)-1:] == "," {
 				sql = sql[:len(sql)-1]
 			}
@@ -120,7 +120,7 @@ func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}
 	for i := 0; i < numField; i++ {
 		kind := t.Field(i).Type.Kind()
 
-		if kind == reflect.Array || kind == reflect.Slice {
+		if kind == reflect.Array || kind == reflect.Slice || len(t.Field(i).Tag.Get("relaction_name")) > 0 {
 			if sql[len(sql)-1:] == "," {
 				sql = sql[:len(sql)-1]
 			}
@@ -171,6 +171,7 @@ func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}
 }
 
 // FillAutoNestedSingle, writes given data to the given table
+// create table for nested objects if any
 // and returns the last inserted id and error if any.
 // Create automatically relations.
 func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{}) (int64, error) {
