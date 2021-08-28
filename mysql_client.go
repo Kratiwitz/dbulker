@@ -140,6 +140,8 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 		}
 
 		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
+
+		// TODO collect nesteds
 	}
 
 	sql += RightParanthesisToken + " " + ValuesToken + " " + LeftParanthesisToken
@@ -161,4 +163,6 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 	}
 
 	return lastInsertedId, nil
+
+	// TODO create junction table(if not exists) for nesteds
 }

@@ -50,3 +50,18 @@ func writeValuesToSql(sql *string, data *interface{}, dataIndexes []int) {
 		(*sql) += value
 	}
 }
+
+func getStructFieldByTag(tag string, tagName string, t reflect.Type) (reflect.StructField, int) {
+	for i := 0; i < t.NumField(); i++ {
+		tf := t.Field(i)
+		if strings.EqualFold(tf.Tag.Get(tagName), tag) {
+			return t.Field(i), i
+		}
+	}
+
+	return reflect.StructField{}, -1
+}
+
+func checkHasRelationTag(t reflect.StructField) bool {
+	return len(t.Tag.Get(TagRelationName)) > 0
+}

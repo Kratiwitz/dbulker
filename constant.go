@@ -1,8 +1,9 @@
 package main
 
 const (
-	TagRelationName       = "relaction_name"
+	TagRelationName       = "relation_name"
 	TagBulker             = "bulker"
+	TagBulkerType         = "bulker_type"
 	CommaToken            = ","
 	RightParanthesisToken = ")"
 	LeftParanthesisToken  = "("
