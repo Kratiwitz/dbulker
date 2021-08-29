@@ -14,6 +14,8 @@ type MysqlDB struct {
 	client           *sql.DB
 }
 
+const InsertTemplate = "INSERT INTO %s (%s) VALUES %s"
+
 // NewMysqlClient create MysqlDB client, connect to db and return MysqlDB
 func NewMysqlClient(connectionString, database string) (*MysqlDB, error) {
 	mysqlDb := &MysqlDB{
@@ -44,7 +46,8 @@ func (mysqldb *MysqlDB) Connect() error {
 // given table and returns an error if any
 // Ignore any nested child.
 func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interface{}) error {
-	sql := "INSERT INTO " + targetTable + " ("
+	var columns string
+	var values string
 
 	dataType := reflect.TypeOf(data[0])
 	numField := dataType.NumField()
@@ -52,30 +55,27 @@ func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interfa
 
 	for i := 0; i < numField; i++ {
 		if checkNested(dataType, i) {
-			removeLastCommaFromSqlIfAny(&sql)
+			removeLastCommaFromSqlIfAny(&columns)
 			continue
 		}
 
-		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
+		addFieldTagToSql(&columns, &dataIndexes, dataType, i, numField)
 	}
-
-	sql += ") VALUES "
-
 	dataLength := len(data)
 
 	for index, v := range data {
-		sql += LeftParanthesisToken
+		values += LeftParanthesisToken
 
-		writeValuesToSql(&sql, &v, dataIndexes)
+		writeValuesToSql(&values, &v, dataIndexes)
 
 		if dataLength-1 == index {
-			sql += RightParanthesisToken
+			values += RightParanthesisToken
 		} else {
-			sql += RightParanthesisToken + CommaToken
+			values += RightParanthesisToken + CommaToken
 		}
 	}
 
-	_, err := mysqldb.client.Exec(sql)
+	_, err := mysqldb.client.Exec(fmt.Sprintf(InsertTemplate, targetTable, columns, values))
 
 	if err != nil {
 		return err
@@ -88,7 +88,8 @@ func (mysqldb *MysqlDB) FillAutoPlainMultiple(targetTable string, data []interfa
 // and returns the last inserted id and error if any.
 // Ignore any nested child.
 func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}) (int64, error) {
-	sql := "INSERT INTO " + targetTable + " ("
+	var columns string
+	var values string
 
 	dataType := reflect.TypeOf(data)
 	numField := dataType.NumField()
@@ -96,18 +97,17 @@ func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}
 
 	for i := 0; i < numField; i++ {
 		if checkNested(dataType, i) {
-			removeLastCommaFromSqlIfAny(&sql)
+			removeLastCommaFromSqlIfAny(&columns)
 			continue
 		}
 
-		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
+		addFieldTagToSql(&columns, &dataIndexes, dataType, i, numField)
 	}
 
-	sql += RightParanthesisToken + " " + ValuesToken + " " + LeftParanthesisToken
-	writeValuesToSql(&sql, &data, dataIndexes)
-	sql += RightParanthesisToken
+	writeValuesToSql(&values, &data, dataIndexes)
+	values = LeftParanthesisToken + values + RightParanthesisToken
 
-	res, err := mysqldb.client.Exec(sql)
+	res, err := mysqldb.client.Exec(fmt.Sprintf(InsertTemplate, targetTable, columns, values))
 
 	if err != nil {
 		return 0, err
@@ -127,7 +127,8 @@ func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}
 // and returns the last inserted id and error if any.
 // Create automatically relations.
 func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{}) (int64, error) {
-	sql := "INSERT INTO " + targetTable + " ("
+	var columns string
+	var values string
 
 	dataType := reflect.TypeOf(data)
 	numField := dataType.NumField()
@@ -135,22 +136,18 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 
 	for i := 0; i < numField; i++ {
 		if checkNested(dataType, i) {
-			removeLastCommaFromSqlIfAny(&sql)
+			removeLastCommaFromSqlIfAny(&columns)
 			continue
 		}
 
-		addFieldTagToSql(&sql, &dataIndexes, dataType, i, numField)
+		addFieldTagToSql(&columns, &dataIndexes, dataType, i, numField)
 
 		// TODO collect nesteds
 	}
 
-	sql += RightParanthesisToken + " " + ValuesToken + " " + LeftParanthesisToken
+	writeValuesToSql(&values, &data, dataIndexes)
 
-	writeValuesToSql(&sql, &data, dataIndexes)
-
-	sql += RightParanthesisToken
-
-	res, err := mysqldb.client.Exec(sql)
+	res, err := mysqldb.client.Exec(fmt.Sprintf(InsertTemplate, targetTable, columns, values))
 
 	if err != nil {
 		return 0, err
