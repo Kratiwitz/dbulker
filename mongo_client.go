@@ -118,8 +118,8 @@ func (mongodb *MongoDB) GetAll(collection string, custom interface{}) ([]interfa
 				elemT := reflect.TypeOf(element[k])
 
 				if elemT == reflect.TypeOf(primitive.ObjectID{}) {
-					id := element[k].(primitive.ObjectID).String()
-					f.Set(reflect.ValueOf(id))
+					id := element[k].(primitive.ObjectID).Hex()
+					f.SetString(id)
 				} else if elemT != reflect.TypeOf(primitive.A{}) {
 					f.Set(reflect.ValueOf(element[k]))
 				} else {

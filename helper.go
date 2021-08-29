@@ -25,7 +25,11 @@ func removeLastCommaFromSqlIfAny(sql *string) {
 }
 
 func addFieldTagToSql(sql *string, dataIndexes *[]int, dataType reflect.Type, index int, numField int) {
-	tag := dataType.Field(index).Tag.Get(TagBulker)
+	tag := dataType.Field(index).Tag.Get(TagBulkerRDB)
+
+	if tag == "" {
+		tag = dataType.Field(index).Tag.Get(TagBulker)
+	}
 
 	if numField-1 != index {
 		tag += CommaToken
