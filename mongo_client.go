@@ -84,10 +84,9 @@ func (mongodb *MongoDB) GetAll(collection string, custom interface{}) ([]interfa
 		for k := range element {
 			customFieldType, existsCheck := getStructFieldByTag(k, TagBulker, customType)
 			f := customPtrVal.FieldByName(customFieldType.Name)
+			sre := customFieldType.Type
 
 			if checkHasRelationTag(customFieldType) {
-				sre := customFieldType.Type
-
 				if sre.Kind() != reflect.Array && sre.Kind() != reflect.Slice {
 					return data, fmt.Errorf("relational struct field must be array or slice %v", sre)
 				}
@@ -116,50 +115,27 @@ func (mongodb *MongoDB) GetAll(collection string, custom interface{}) ([]interfa
 					}
 				}
 			} else if existsCheck != -1 {
-				if reflect.TypeOf(element[k]) == reflect.TypeOf(primitive.ObjectID{}) {
+				elemT := reflect.TypeOf(element[k])
+
+				if elemT == reflect.TypeOf(primitive.ObjectID{}) {
 					id := element[k].(primitive.ObjectID).String()
 					f.Set(reflect.ValueOf(id))
-				} else {
-					// TODO: check if primitive array for element's item
+				} else if elemT != reflect.TypeOf(primitive.A{}) {
 					f.Set(reflect.ValueOf(element[k]))
+				} else {
+					earr := element[k].(primitive.A)
+					for _, e := range earr {
+						sree := sre.Elem()
+						sreeVPtr := reflect.New(sree)
+						sreeV := reflect.Value(sreeVPtr).Elem()
+						sreeV.Set(reflect.ValueOf(e).Convert(sree))
+						f.Set(reflect.Append(f, sreeV))
+					}
 				}
 			}
 		}
 
 		data = append(data, customPtrVal.Interface())
-
-		// typeOf := reflect.TypeOf(custom)
-
-		// fieldCount := typeOf.NumField()
-
-		// for i := 0; i < fieldCount; i++ {
-		// 	kind := typeOf.Field(i).Type.Kind()
-
-		// 	if kind == reflect.Array || kind == reflect.Slice {
-		// 		childFieldCount := typeOf.Field(i).Type.Elem().NumField()
-		// 		mainFieldIsActive := false
-		// 		mainFieldIndex := 0
-
-		// 		for j := 0; j < childFieldCount; j++ {
-		// 			childTag := typeOf.Field(i).Type.Elem().Field(j).Tag
-
-		// 			if childTag.Get("bulker_type") == "main" {
-		// 				mainFieldIsActive = true
-		// 				mainFieldIndex = j
-		// 			}
-		// 		}
-
-		// 		if mainFieldIsActive {
-		// 			dummyStruct := reflect.StructField{}
-		// 			field := typeOf.Elem().Field(i).
-		// 			field = dummyStruct
-		// 		}
-		// 	}
-		// }
-
-		// temp := reflect.New(reflect.TypeOf(custom))
-		// err := cur.Decode(inter)
-		// data = append(data, temp.Elem().Interface())
 	}
 
 	return data, nil
