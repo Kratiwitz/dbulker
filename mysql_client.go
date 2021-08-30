@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -14,7 +15,11 @@ type MysqlDB struct {
 	client           *sql.DB
 }
 
-const InsertTemplate = "INSERT INTO %s (%s) VALUES %s"
+const (
+	InsertTemplate      = "INSERT INTO %s (%s) VALUES %s"
+	CreateTableTemplate = "CREATE TABLE IF NOT EXISTS %s (%s)"
+	PrimaryKeyTemplate  = "PRIMARY KEY (`%s`)"
+)
 
 // NewMysqlClient create MysqlDB client, connect to db and return MysqlDB
 func NewMysqlClient(connectionString, database string) (*MysqlDB, error) {
@@ -126,9 +131,10 @@ func (mysqldb *MysqlDB) FillAutoPlainSingle(targetTable string, data interface{}
 // create table for nested objects if any
 // and returns the last inserted id and error if any.
 // Create automatically relations.
-func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{}) (int64, error) {
+func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{}) error {
 	var columns string
 	var values string
+	var haveNested bool
 
 	dataType := reflect.TypeOf(data)
 	numField := dataType.NumField()
@@ -136,30 +142,115 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 
 	for i := 0; i < numField; i++ {
 		if checkNested(dataType, i) {
+			haveNested = true
 			removeLastCommaFromSqlIfAny(&columns)
 			continue
 		}
 
 		addFieldTagToSql(&columns, &dataIndexes, dataType, i, numField)
-
-		// TODO collect nesteds
 	}
 
 	writeValuesToSql(&values, &data, dataIndexes)
+	values = LeftParanthesisToken + values + RightParanthesisToken
 
 	res, err := mysqldb.client.Exec(fmt.Sprintf(InsertTemplate, targetTable, columns, values))
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	lastInsertedId, err := res.LastInsertId()
+	mainInsertedId, err := res.LastInsertId()
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return lastInsertedId, nil
+	if !haveNested {
+		return nil
+	}
 
-	// TODO create junction table(if not exists) for nesteds
+	type JunctionTableConfiguration struct {
+		TableName   string
+		MainId      int64
+		InsertedIDs []int64
+	}
+
+	junctions := []JunctionTableConfiguration{}
+
+	for i := 0; i < numField; i++ {
+		if checkNested(dataType, i) {
+			field := dataType.Field(i)
+			fieldT := field.Type.Elem()
+			subFieldNum := field.Type.Elem().NumField()
+			fields := make([]string, 0)
+			tableName := field.Tag.Get(TagTable)
+			subDataIndexes := []int{}
+
+			var subColumns []string
+
+			for j := 0; j < subFieldNum; j++ {
+				subField := fieldT.Field(j)
+				columnName := subField.Tag.Get(TagBulkerRDB)
+				columnSetting := subField.Tag.Get(TagBulkerColumn)
+				columnType := subField.Tag.Get(TagBulkerType)
+
+				if columnName == "" {
+					columnName = subField.Tag.Get(TagBulker)
+				}
+
+				if columnType == "primary" {
+					fields = append(fields, fmt.Sprintf(PrimaryKeyTemplate, columnName))
+				} else {
+					subColumns = append(subColumns, columnName)
+					subDataIndexes = append(subDataIndexes, j)
+				}
+
+				fields = append(fields, fmt.Sprintf("`%s` %s", columnName, columnSetting))
+			}
+
+			createSql := fmt.Sprintf(CreateTableTemplate, tableName, strings.Join(fields, ","))
+			mysqldb.client.Exec(createSql)
+
+			// TODO insert nested object to table
+
+			mData := reflect.ValueOf(data).Field(i)
+			dataLength := mData.Len()
+			var insertedIds []int64
+
+			for j := 0; j < dataLength; j++ {
+				subValues := LeftParanthesisToken
+				subData := mData.Index(j).Interface()
+
+				writeValuesToSql(&subValues, &subData, subDataIndexes)
+
+				subValues += RightParanthesisToken
+
+				insertSql := fmt.Sprintf(InsertTemplate, tableName, strings.Join(subColumns, ","), subValues)
+
+				inRes, err := mysqldb.client.Exec(insertSql)
+
+				if err != nil {
+					continue
+				}
+
+				lastInserted, err := inRes.LastInsertId()
+
+				if err != nil {
+					continue
+				}
+
+				insertedIds = append(insertedIds, lastInserted)
+			}
+
+			junctions = append(junctions, JunctionTableConfiguration{
+				TableName:   field.Tag.Get(TagRelationName),
+				MainId:      mainInsertedId,
+				InsertedIDs: insertedIds,
+			})
+		}
+	}
+
+	// TODO insert id's to created junction table
+
+	return nil
 }
