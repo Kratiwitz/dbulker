@@ -1,4 +1,4 @@
-package main
+package dbulker
 
 type Database interface {
 	Connect() error

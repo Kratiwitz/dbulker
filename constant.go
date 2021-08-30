@@ -1,4 +1,4 @@
-package main
+package dbulker
 
 const (
 	TagRelationName       = "relation_name"
