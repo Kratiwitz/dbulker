@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -171,6 +172,7 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 
 	type JunctionTableConfiguration struct {
 		TableName   string
+		SelfName    string
 		MainId      int64
 		InsertedIDs []int64
 	}
@@ -211,8 +213,6 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 			createSql := fmt.Sprintf(CreateTableTemplate, tableName, strings.Join(fields, ","))
 			mysqldb.client.Exec(createSql)
 
-			// TODO insert nested object to table
-
 			mData := reflect.ValueOf(data).Field(i)
 			dataLength := mData.Len()
 			var insertedIds []int64
@@ -244,13 +244,33 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 
 			junctions = append(junctions, JunctionTableConfiguration{
 				TableName:   field.Tag.Get(TagRelationName),
+				SelfName:    tableName,
 				MainId:      mainInsertedId,
 				InsertedIDs: insertedIds,
 			})
 		}
 	}
 
-	// TODO insert id's to created junction table
+	for _, junction := range junctions {
+		columns := fmt.Sprintf("`%s_id` INT, `%s_id` INT", targetTable, junction.SelfName)
+		createSql := fmt.Sprintf(CreateTableTemplate, junction.TableName, columns)
+		_, err := mysqldb.client.Exec(createSql)
+
+		if err != nil {
+			return err
+		}
+
+		for _, id := range junction.InsertedIDs {
+			columns = fmt.Sprintf("`%s_id`, `%s_id`", targetTable, junction.SelfName)
+			values := fmt.Sprintf("(%s, %s)", strconv.Itoa(int(junction.MainId)), strconv.Itoa(int(id)))
+			insertSql := fmt.Sprintf(InsertTemplate, junction.TableName, columns, values)
+			_, err := mysqldb.client.Exec(insertSql)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
