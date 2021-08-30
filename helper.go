@@ -5,13 +5,6 @@ import (
 	"strings"
 )
 
-func slugify(str string) string {
-	str = strings.ReplaceAll(str, " ", "_")
-	str = strings.ToLower(str)
-
-	return str
-}
-
 func checkNested(dataType reflect.Type, index int) bool {
 	kind := dataType.Field(index).Type.Kind()
 
@@ -44,6 +37,7 @@ func writeValuesToSql(sql *string, data *interface{}, dataIndexes []int) {
 	values := reflect.ValueOf((*data))
 
 	for i, valueIndex := range dataIndexes {
+		// TODO get field data generic
 		value := strings.ReplaceAll(values.Field(valueIndex).String(), "\"", "\\\"")
 		value = "\"" + value + "\""
 

@@ -1,4 +1,4 @@
-module dbbulker
+module dbulker
 
 go 1.16
 
