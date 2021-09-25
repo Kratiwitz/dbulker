@@ -2,6 +2,12 @@
 
 Dbulker is a data transporter between MongoDB to Mysql (for now)
 
+## Getting Package
+
+```sh
+go get github.com/kratiwitz/dbulker
+```
+
 ## Prerequisites
 - Go
 - Mysql
