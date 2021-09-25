@@ -1,4 +1,4 @@
-# DBulker [![GoDoc](https://godoc.org/github.com/Kratiwitz/dbulker?status.svg)](http://godoc.org/github.com/Kratiwitz/dbulker) [![Go Report Card](https://goreportcard.com/badge/github.com/Kratiwitz/dbulker)](https://goreportcard.com/report/github.com/Kratiwitz/dbulker)
+# DBulker [![GoDoc](https://godoc.org/github.com/kratiwitz/dbulker?status.svg)](http://godoc.org/github.com/kratiwitz/dbulker) [![Go Report Card](https://goreportcard.com/badge/github.com/kratiwitz/dbulker)](https://goreportcard.com/report/github.com/kratiwitz/dbulker)
 
 Dbulker is a data transporter between MongoDB to Mysql (for now)
 

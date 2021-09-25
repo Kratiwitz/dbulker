@@ -1,4 +1,4 @@
-module github.com/Kratiwitz/dbulker
+module github.com/kratiwitz/dbulker
 
 go 1.16
 
