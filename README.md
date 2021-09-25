@@ -107,6 +107,7 @@ func CheckError(err error) {
 	}
 }
 ```
+![image](https://user-images.githubusercontent.com/11901620/134783432-5a563ef1-97f0-4214-bbf2-4f07ca1e323a.png)
 
 Your database result will look like this;
 
