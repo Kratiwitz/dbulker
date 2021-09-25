@@ -22,6 +22,9 @@ const (
 	PrimaryKeyTemplate  = "PRIMARY KEY (`%s`)"
 )
 
+// TODO: replace with selection query for exists data or use map[interface]int64
+var mainColDatasMapping = make(map[string]int64)
+
 // NewMysqlClient create MysqlDB client, connect to db and return MysqlDB
 func NewMysqlClient(connectionString, database string) (*MysqlDB, error) {
 	mysqlDb := &MysqlDB{
@@ -187,6 +190,7 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 			fields := make([]string, 0)
 			tableName := field.Tag.Get(TagTable)
 			subDataIndexes := []int{}
+			isHaveUniqueTag := false
 
 			var subColumns []string
 
@@ -198,6 +202,10 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 
 				if columnName == "" {
 					columnName = subField.Tag.Get(TagBulker)
+				}
+
+				if subField.Tag.Get(TagUnique) == "true" {
+					isHaveUniqueTag = true
 				}
 
 				if columnType == "primary" {
@@ -227,6 +235,13 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 
 				insertSql := fmt.Sprintf(InsertTemplate, tableName, strings.Join(subColumns, ","), subValues)
 
+				if isHaveUniqueTag {
+					if lastInserted, exists := mainColDatasMapping[insertSql]; exists {
+						insertedIds = append(insertedIds, lastInserted)
+						continue
+					}
+				}
+
 				inRes, err := mysqldb.client.Exec(insertSql)
 
 				if err != nil {
@@ -238,6 +253,8 @@ func (mysqldb *MysqlDB) FillAutoNestedSingle(targetTable string, data interface{
 				if err != nil {
 					continue
 				}
+
+				mainColDatasMapping[insertSql] = lastInserted
 
 				insertedIds = append(insertedIds, lastInserted)
 			}

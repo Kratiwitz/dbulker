@@ -1,4 +1,4 @@
-# DBulker [![Go Report Card](https://goreportcard.com/badge/github.com/Kratiwitz/dbulker)](https://goreportcard.com/report/github.com/Kratiwitz/dbulker)
+# DBulker [![GoDoc](https://godoc.org/github.com/Kratiwitz/dbulker?status.svg)](http://godoc.org/github.com/Kratiwitz/dbulker) [![Go Report Card](https://goreportcard.com/badge/github.com/Kratiwitz/dbulker)](https://goreportcard.com/report/github.com/Kratiwitz/dbulker)
 
 Dbulker is a data transporter between MongoDB to Mysql (for now)
 
@@ -30,17 +30,17 @@ mysqldb, err := dbulker.NewMysqlClient("root:root@tcp(127.0.0.1:3306)", "movie")
 
 Get Movies from Mongo
 ```go
-data, err := mongodb.GetAll("mangas", Movie{})
+data, err := mongodb.GetAll("movies", Movie{})
 ```
 
 And write first data to Mysql
 ```go
-mysqldb.FillAutoPlainSingle("manga", data[0])
+mysqldb.FillAutoPlainSingle("movie", data[0])
 ```
 
 Or write all data
 ```go
-mysqldb.FillAutoPlainMultiple("manga", data)
+mysqldb.FillAutoPlainMultiple("movie", data)
 ```
 
 ## Relational
@@ -187,6 +187,14 @@ Name string `bulker:"name" bulker_type:"main"`
 Usage 
 ```go
 Id  string `bulker:"id" bulker_column:"INT NOT NULL AUTO_INCREMENT"`
+```
+
+### `bulker_unique`
+`bulker_unique` reduce for repeated values.
+
+Usage 
+```go
+Name string `bulker:"name" bulker_type:"main" bulker_unique:"true" bulker_column:"TEXT NULL"`
 ```
 
 ## License
