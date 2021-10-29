@@ -1,7 +1,9 @@
 package dbulker
 
 import (
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -37,8 +39,21 @@ func writeValuesToSql(sql *string, data *interface{}, dataIndexes []int) {
 	values := reflect.ValueOf((*data))
 
 	for i, valueIndex := range dataIndexes {
-		// TODO get field data generic
-		value := strings.ReplaceAll(values.Field(valueIndex).String(), "\"", "\\\"")
+		fieldData := values.Field(valueIndex)
+		kind := values.Field(valueIndex).Kind()
+
+		var value string
+
+		if kind == reflect.String {
+			value = strings.ReplaceAll(fieldData.String(), "\"", "\\\"")
+		} else if kind == reflect.Int32 {
+			value = strconv.Itoa(int(fieldData.Int()))
+		} else if kind == reflect.Int64 {
+			value = strconv.Itoa(int(fieldData.Int()))
+		} else if kind == reflect.Float32 {
+			value = fmt.Sprintf("%f", float32(fieldData.Float()))
+		}
+
 		value = "\"" + value + "\""
 
 		if len(dataIndexes)-1 != i {
