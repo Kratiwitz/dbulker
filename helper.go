@@ -2,6 +2,7 @@ package dbulker
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -46,12 +47,14 @@ func writeValuesToSql(sql *string, data *interface{}, dataIndexes []int) {
 
 		if kind == reflect.String {
 			value = strings.ReplaceAll(fieldData.String(), "\"", "\\\"")
-		} else if kind == reflect.Int32 {
-			value = strconv.Itoa(int(fieldData.Int()))
-		} else if kind == reflect.Int64 {
+		} else if kind == reflect.Int32 || kind == reflect.Int64 {
 			value = strconv.Itoa(int(fieldData.Int()))
 		} else if kind == reflect.Float32 {
 			value = fmt.Sprintf("%f", float32(fieldData.Float()))
+		} else if kind == reflect.Float64 {
+			value = fmt.Sprintf("%f", float64(fieldData.Float()))
+		} else {
+			log.Fatal(fmt.Sprintf("Unsupported kind of field: %s", kind.String()))
 		}
 
 		value = "\"" + value + "\""
